@@ -388,6 +388,7 @@ VARIABLE(usb_drive_num)
 	.byte	0,0,0,0
 VARIABLE(usb_md_address)
 	.word	0
+VARIABLE(usb_fail_stage)  //0x8357  失败阶段:0=无EHCI 1=无设备 2=复位失败 3=描述符 4=LUN
   .byte	0                   //0x8357  未使用
 VARIABLE(count_ms)          //0x8358
 	.word	0
@@ -8235,6 +8236,8 @@ cccc:
 //----------------------------------------------------------------------------
 	.align	8
 
+Get_device8:
+	.byte   0x80,06,00,01,00,00,0x08,00
 Get_device:
 	.byte   0x80,06,00,01,00,00,0x12,00
 Get_Configuration:
@@ -8780,9 +8783,22 @@ Port_Reset:
 
 	movl $0x00001000, %eax  
 	call Write_Register 
-	movw $200, %ax
+	/* Plop semantics (USB2DRI_PLAN.md A2): poll for the reset bit
+	 * (PORTSC bit8 = AH bit0) to self-clear, bounded at 500ms
+	 * (50 x Delay(10)), then a 200ms reset-recovery period before
+	 * forcing PED=1. */
+	movw $50, %bp
+1:
+	movw $10, %ax
 	call Delay
-	
+	call Read_Register
+	testb $01, %ah                 /* PORTSC bit8 = Port Reset */
+	jz 2f
+	decw %bp
+	jnz 1b
+2:
+	movw $200, %ax                 /* reset recovery period */
+	call Delay
 	movl $0x00001007, %eax    
 	call Write_Register
 
@@ -8840,13 +8856,21 @@ Set_QH:
 	movl $0x80021, %eax
 	movw $0, %si	
 	call Write_Register
-	movl $0x00100000, %ecx 
+	/* Plop semantics (USB2DRI_PLAN.md A4): wait for completion on a
+	 * real clock - 100ms of Delay(1) polls - instead of the fixed
+	 * 0x100000-iteration CPU loop whose timeout drifted with the CPU
+	 * clock. */
+	movw $100, %cx
 1:	
 	movw $04, %si
 	call Read_Register
 	testb $03, %al
 	jne 2f
-	loopl 1b
+	pushw %cx
+	movw $1, %ax
+	call Delay
+	popw %cx
+	loop 1b
 	orb $2, (Status - USB2DRI)
 	jmp 1f
 2:
@@ -8857,11 +8881,15 @@ Set_QH:
 	orb $4, (Status - USB2DRI)
 	jmp 1f
 2:
-	movl $0x00100000, %ecx 
+	movw $100, %cx 
 2:
 	testb $0x80, 0x18(%di)
 	je 2f      
-	loopl 2b
+	pushw %cx
+	movw $1, %ax
+	call Delay
+	popw %cx
+	loop 2b
 	orb $8, (Status - USB2DRI)
 2:
 	testb $8, 7(%di)
@@ -9562,6 +9590,7 @@ Initialization:
 	
 	call Determine_delay_units
 	call Check_bus
+	movb $0, %fs:ABS(EXT_C(usb_fail_stage))	/* 0 = no EHCI found */
 	movb $0x80,%fs:ABS(EXT_C(usb_count_error))
 	jb 3f
 	call Disk_Info 
@@ -9569,13 +9598,19 @@ Initialization:
 	call Device_enumerate
 	movb $0x81,%fs:ABS(EXT_C(usb_count_error))
 	cmpb $0, (usb_count - USB2DRI)
-	je 3f	
+	jne 1f
+	movb $1, %fs:ABS(EXT_C(usb_fail_stage))	/* 1 = no device on any port */
+	jmp 3f	
+1:
 	call Drive_enumerate
 	movb $0x82, %fs:ABS(EXT_C(usb_count_error))			//usb_error
 	
 	movb (EXT_C(max_dri) - USB2DRI), %al
 	orb %al, %al
-	je 3f
+	jne 1f
+	movb $4, %fs:ABS(EXT_C(usb_fail_stage))	/* 4 = drive enumeration failed */
+	jmp 3f
+1:
 	movb %al, %fs:ABS(EXT_C(usb_count_error))				//usb_count
 	movw $(Number - USB2DRI), %si
 	movw $ABS(EXT_C(usb_drive_num)), %bx
@@ -10152,12 +10187,37 @@ Fill_device_structure:
 	movw %si, (Port_Num_Reg - USB2DRI)(%bx)
 2:
 	movw $(Cache - USB2DRI), %di
-	movw $(Get_device - USB2DRI), %si
-	movb $0x40, (ConSize - USB2DRI)(%bx)
+	/* Plop semantics (USB2DRI_PLAN.md A3): read the device descriptor
+	 * head first (8 bytes at address 0) so bMaxPacketSize0 (byte 7 of
+	 * the response) sizes ep0 correctly before the full 18-byte read.
+	 * The ConSize field feeds Set_QH's MPS; a legal value is required
+	 * for small-ep0 (MPS=8) devices. */
+	movw $(Get_device8 - USB2DRI), %si
 	call Control_transfer
 	cmpb $0, (Status - USB2DRI)
-	jne jscl
-	
+	jne 5f                          /* 8-byte read failed: bail (was
+					   * the old full-read path - a stall
+					   * here means no ep0 at all) */
+	movb 7(%di), %al               /* bMaxPacketSize0 */
+	cmpb $8, %al
+	je 1f
+	cmpb $16, %al
+	je 1f
+	cmpb $32, %al
+	je 1f
+	cmpb $64, %al
+	je 1f
+	movb $64, %al                  /* out-of-range: fall back to 64 */
+1:
+	movb %al, (ConSize - USB2DRI)(%bx)
+	movw $(Cache - USB2DRI), %di
+	movw $(Get_device - USB2DRI), %si
+	call Control_transfer
+	cmpb $0, (Status - USB2DRI)
+	je 1f
+	movb $3, %fs:ABS(EXT_C(usb_fail_stage))	/* 3 = descriptor failed */
+	jmp jscl
+1:
 	call szsbdz
 	incb (max_dev - USB2DRI)
 
@@ -10242,6 +10302,7 @@ jscl:
 	popw %cx
 	ret	
 5:	
+	movb $3, %fs:ABS(EXT_C(usb_fail_stage))	/* 3 = descriptor/config failed */
 	movb $0xf0, (MaxLUN - USB2DRI)(%bx)
 	jmp jscl
 				
@@ -10260,6 +10321,23 @@ Device_enumerate:
 1: 
 	testb $04, %ah
 	jne 1f
+	/* Plop semantics (USB2DRI_PLAN.md A1): up to 3 attempts per port.
+	 * The device slot is reset (DevID=0, ConSize=0x40, MaxLUN=0xff,
+	 * endpoints cleared) before every retry so a half-enumerated
+	 * device never leaks into the drive table. */
+	movb $2, (enum_retry - USB2DRI)
+retry:
+	pushw %cx
+	movb $0, %dl                   /* slot 0 pre-clear */
+	movb $DevLen, %al
+	mulb %dl
+	movw %ax, %bx
+	movb $0, (DevID - USB2DRI)(%bx)
+	movw $0x40, (ConSize - USB2DRI)(%bx)
+	movb $0xff, (MaxLUN - USB2DRI)(%bx)
+	movw $0, (InProperty - USB2DRI)(%bx)
+	movw $0, (OutProperty - USB2DRI)(%bx)
+	popw %cx
 	call Port_Reset    
 	testb $04, %al
 	jne 3f 
@@ -10268,7 +10346,10 @@ Device_enumerate:
 	call Write_Register
 	movw $03, %ax
 	call Delay 
-	jmp 2b
+	decb (enum_retry - USB2DRI)
+	jnz retry
+	movb $2, %fs:ABS(EXT_C(usb_fail_stage))	/* 2 = reset failed */
+	jmp 2b                        /* retries exhausted: next port */
 3:  
 	pushw %si
 	movb $0, (HUB_PORT - USB2DRI)
@@ -10290,9 +10371,13 @@ cl_jxq_1:
 	call usb_probe
 	jmp cl_jxq_0
 cl_jxq_end:				   
-	ret        	
-	
-	
+	ret        		
+
+/* A1: per-port enumeration retry counter (USB2DRI_PLAN.md §A1);
+ * lives in the one-shot init region below Ending, no resident cost */
+enum_retry:
+	.byte	0
+		
 Fill_descriptor:  
 	movl $(GDT - USB2DRI), %eax
 	addl (ds_Linear - USB2DRI), %eax
@@ -10323,7 +10408,7 @@ set_410_1:
 	andb $0x3f, %fs:0x0410
 	ret
 	
-	. = USB2DRI + 0x13c0
+	. = USB2DRI + 0x1440
 			
 /* ********************  USB2DRI end  ****************************** */ 
 

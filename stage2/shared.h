@@ -1121,6 +1121,8 @@ extern unsigned long reg_base_addr_append;
 extern unsigned char usb_delay;
 extern unsigned short One_transfer;
 extern unsigned char usb_count_error;
+extern unsigned char usb_fail_stage;	/* 0=no EHCI 1=no device 2=reset
+					   3=descriptor 4=drive enum */
 extern unsigned char usb_drive_num[8];
 extern unsigned long init_usb(void);
 extern unsigned long init_atapi(void);

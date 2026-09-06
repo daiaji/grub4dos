@@ -1,0 +1,20 @@
+# 构建产物(usb2test/build.sh 可再生)
+Makefile
+stage2/Makefile
+config.cache
+config.h
+config.log
+config.status
+grub4dos_int_ver.h
+grub4dos_version.h
+stage2/.deps/
+stage2/*.o
+stage2/pre_stage2
+stage2/pre_stage2.exec
+stage2/grldr
+stage2/grldrstart
+stage2/grldrstart.o
+stage2/grldrstart.exec
+stage2/stage2_size.h
+usb2test/__pycache__/
+usb2test/pre_stage2.map-symbols

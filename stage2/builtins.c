@@ -15046,22 +15046,38 @@ usb_func (char *arg, int flags)
 					printf_debug0(" 0x%x;", usb_drive_num[i]);
 				}
 			}
-			else
-			{
-					printf_debug0("\rError %x. No USB device found. ", (usb_count_error));				
-					switch (usb_count_error)
-					{
-						case 0x80:
-							printf("BIOS does not support the use of INT1A PCI installation check. \n");
-							break;
-						case 0x81:
-							printf("USB device enumeration failed. Try to restart. \n");
-							break;
-						case 0x82:
-							printf("USB device is not ready.  \n");
-							break;
-					}
-			}
+				else
+				{
+						printf_debug0("\rError %x. No USB device found. ", (usb_count_error));				
+						switch (usb_count_error)
+						{
+							case 0x80:
+								printf("BIOS does not support the use of INT1A PCI installation check. \n");
+								break;
+							case 0x81:
+								printf("USB device enumeration failed. Try to restart. \n");
+								break;
+							case 0x82:
+								printf("USB device is not ready.  \n");
+								break;
+						}
+						/* USB2DRI_PLAN.md A6: fail-stage hints */
+						switch (usb_fail_stage)
+						{
+							case 1:
+								printf("No device found on the USB2.0 port. Try another port. \n");
+								break;
+							case 2:
+								printf("USB device reset failed. The device may be low-speed only. \n");
+								break;
+							case 3:
+								printf("USB descriptor read failed. Try restarting, or another device. \n");
+								break;
+							case 4:
+								printf("USB drive enumeration failed. Try restarting. \n");
+								break;
+						}
+				}
 			return 1;
 		}
     else
