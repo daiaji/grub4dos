@@ -18,3 +18,4 @@ stage2/grldrstart.exec
 stage2/stage2_size.h
 usb2test/__pycache__/
 usb2test/pre_stage2.map-symbols
+stage2/usb2dri.nm

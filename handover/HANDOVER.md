@@ -1,6 +1,7 @@
 # grub4dos USB2DRI Phase 1 交接文档
 
-> 交接日期:2026-09-06　分支:0.4.6a（工作区改动**未提交**,以补丁形式归档）
+> 交接日期:2026-09-06　分支:0.4.6a(**已提交并推送**至私有仓库
+> `daiaji/grub4dos`,构建产物经 .gitignore 排除,改动同时以补丁归档于 patches/)
 > 状态一句话:Phase 1 代码(A1–A6)全部完成,模拟验证 14 用例中 13 个 PASS,
 > case 4 挂起待定位;M4 真机矩阵与最终交付待办。
 
@@ -32,7 +33,7 @@ A6 stage 语义已验证:成功=0、无设备=1、复位失败=2、描述符失�
 
 ## 3. 代码改动清单(全部未提交,补丁在 patches/)
 
-**驱动改动** — [`patches/usb2dri_driver.patch`](patches/usb2dri_driver.patch)(302 行,149 insertions):
+**驱动改动** — [`patches/usb2dri_driver.patch`](patches/usb2dri_driver.patch)(302 行,149 insertions,已提交,补丁仅为快照归档):
 
 - `stage2/asm.S`(+117):
   - **A1** `Device_enumerate`(~10309):每端口 3 次尝试循环(`enum_retry` 计数器,
@@ -120,8 +121,9 @@ A6 stage 语义已验证:成功=0、无设备=1、复位失败=2、描述符失�
 4. **最终交付**:代码改动汇总(本档 §3 可直接用)、双轨回归记录、G1 结论
    (模拟侧数据:FS 设备在 EHCI 根端口无传输路径,A6 提示已覆盖用户引导;
    Phase 2 依真机报障占比决策)
-5. **建议**:工作区改动 review 后提交到 0.4.6a 分支(或先开 feature 分支);
-   usb2test/ 与 handover/ 一并入库,避免再出现"M0 代码无法回溯"的情况
+5. **已完成**:工作区改动已提交(Phase 1 代码/usb2test/handover 三笔)并推送
+   至私有仓库 `daiaji/grub4dos`(私有原因:handover/ 内含 Plop 逆向产物,
+   不得公开发布)。上游 chenall/grub4dos 保留为 `upstream` 远程
 6. 若 G1 立项 Phase 2:工作分解纲要见 [`PHASE2_OUTLINE.md`](PHASE2_OUTLINE.md)
    (内存结构调整是第一道坎——常驻区仅剩 164B;UHCI 先行;参考底座
    USBDDOS GPLv2 可合法借逻辑)
