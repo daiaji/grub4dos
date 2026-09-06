@@ -1,0 +1,17 @@
+# M0 baseline — UNMODIFIED driver, 14-case regression matrix
+# Date: 2026-09-05  Tool: unicorn 2.1.4  Build: A7=2872 bytes (limit 3072) OK
+# 1  clean HS enum + AH=42 read      PASS (enum=1, drive=0x80, lba0 match)
+# 2  slow device PR 300ms            PASS* (device model: instant-clear; A2 will make real)
+# 3  no device                       PASS (0x81)
+# 4  LS device (K line)              PASS (skipped, 0x81)
+# 5  reset retry recovery            PASS* (ped_attempts not yet consumed by driver)
+# 6  stall-once recovery             PASS* (stall_once not yet honored in control path)
+# 7  LEGSUP BIOS-owned=1             PASS (handshake path runs, enum ok)
+# 8  HCCPARAMS=0                     PASS (no ECP, enum ok)
+# 9  int13 AH=42 lba0 + lba63        PASS (both match)
+# 10 multi-LUN (2 LUNs)              PASS (count=2, drives 0x80 0x81)
+# 11 hub + downstream                PASS* (hub descriptor answered; downstream skipped like real)
+# 12 qTD never completes             PASS (100ms-loop timeout, 0x81, no hang, 6.3M insns)
+# 13 FS MPS8 device                  PASS* (recorded: driver enum path same as HS model)
+# 14 dual EHCI                       PASS (first controller used, count=1)
+# * = cases whose distinguishing behavior becomes observable in M1/M2/M3
