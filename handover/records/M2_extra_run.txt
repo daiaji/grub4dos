@@ -1,0 +1,9 @@
+[PASS] case  1  stop=sentry         ticks=42     insns=45227     doorbells=33  qtds=33
+        ok   usb_count_error=0x01 (want 1..7)
+        ok   usb_drive_num[0]=0x80 (want 0x80)
+        ok   int13 AH=42 dl=0x80 lba=0: match
+[PASS] case  9  stop=sentry         ticks=42     insns=45227     doorbells=36  qtds=36
+        ok   usb_count_error=0x01 (want 1..7)
+        ok   int13 AH=42 dl=0x80 lba=0: match
+        ok   int13 AH=42 dl=0x80 lba=63: match
+[PASS] case 13  stop=sentry         ticks=42     insns=45221     doorbells=30  qtds=30

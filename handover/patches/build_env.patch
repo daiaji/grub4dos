@@ -1,0 +1,38 @@
+diff --git a/ldscript b/ldscript
+index 425c6ea..79ce45d 100644
+--- a/ldscript
++++ b/ldscript
+@@ -23,7 +23,6 @@ SECTIONS
+   .pdata :
+   {
+     *(.pdata)
+-    edata = . ;
+   }
+   .bss :
+   {
+@@ -36,7 +35,6 @@ SECTIONS
+   .edata :
+   {
+     *(.edata)
+-    end = . ;
+   }
+   .stab :
+   {
+@@ -50,3 +48,17 @@ SECTIONS
+ 
+ ASSERT(!SIZEOF(.pdata), ".pdata not empty")
+ ASSERT(!SIZEOF(.edata), ".edata not empty")
++
++/* Symbols grub4dos' runtime (asm.S) expects.  They must live OUTSIDE any
++ * output section: with the mingw toolchain the empty .pdata/.edata sections
++ * get discarded, and a symbol defined inside a discarded section fails the
++ * link ("defined in discarded section").  edata/end therefore anchor on the
++ * section markers of .pdata/.bss instead. */
++edata = __bss_start__;
++end = __bss_end__;
++
++/* plain spellings used by asm.S when HAVE_ASM_USCORE is unset */
++PROVIDE(__bss_start = __bss_start__);
++PROVIDE(_edata = __bss_start__);
++PROVIDE(end2 = __bss_end__);
++PROVIDE(_end = __bss_end__);

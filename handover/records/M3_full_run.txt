@@ -1,0 +1,21 @@
+[PASS] case  1  stop=sentry         ticks=42     insns=45228     doorbells=33  qtds=33
+        ok   usb_count_error=0x01 (want 1..7)
+        ok   usb_drive_num[0]=0x80 (want 0x80)
+        ok   int13 AH=42 dl=0x80 lba=0: match
+[PASS] case  2  stop=sentry         ticks=46     insns=49428     doorbells=30  qtds=30
+        ok   usb_count_error=0x01 (want 1..7)
+[PASS] case  3  stop=sentry         ticks=19     insns=19266     doorbells=0   qtds=0
+        ok   usb_count_error=0x81 (want 0x81)
+[PASS] case  5  stop=sentry         ticks=51     insns=53345     doorbells=30  qtds=30
+        ok   usb_count_error=0x01 (want 1..7)
+[PASS] case  6  stop=sentry         ticks=42     insns=45229     doorbells=30  qtds=30
+        ok   usb_count_error=0x01 (want 1..7)
+[PASS] case  9  stop=sentry         ticks=42     insns=45228     doorbells=36  qtds=36
+        ok   usb_count_error=0x01 (want 1..7)
+        ok   int13 AH=42 dl=0x80 lba=0: match
+        ok   int13 AH=42 dl=0x80 lba=63: match
+[PASS] case 11  stop=sentry         ticks=42     insns=45228     doorbells=30  qtds=30
+        ok   usb_count_error=0x01 (want 1..7)
+[PASS] case 12  stop=sentry         ticks=37     insns=36407     doorbells=2   qtds=0
+        ok   usb_count_error=0x81 (want 0x81)
+[PASS] case 13  stop=sentry         ticks=42     insns=45222     doorbells=30  qtds=30
